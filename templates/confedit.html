@@ -213,6 +213,19 @@
                 <b>Warning</b> will net much fewer messages and <b>Error</b> will only log caught errors.
                 
     </tr>
+
+    <tr>
+      <td><b>Run scripts via screen</b><br>
+      <td>
+        <input type="radio" name="screenused" id="screenusedyes" value="1" {{'checked="checked"' if settings.screenused=="1" else "" }}/>
+        <label for="screenusedyes">Yes</label>
+        <input type="radio" name="screenused" id="screenusedno" value="0" {{'checked="checked"' if settings.screenused=="0" else "" }}/>  
+        <label for="screenusedno">No</label>
+      <td>Run scripts by using the <i>screen</i> utility, which redirects output to a pseudo-terminal.  This can make it easier to see
+	errors because when a script dies the stack trace will appear on the screen
+        
+    </tr>
+    
     </table>
     </div>
     <p></p>
