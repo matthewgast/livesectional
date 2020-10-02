@@ -27,16 +27,24 @@ logger.info("Log Level Set To: " + str(loglevels[loglevel]))
 #misc settings
 displayused = config.displayused                #0 = no, 1 = yes. If no, then only the metar.py script will be run. Otherwise both scripts will be threaded.
 autorun = config.autorun                        #0 = no, 1 = yes. If yes, live sectional will run on boot up. No, must run from cmd line.
+screenused = config.screenused                  #0 = no, 1 = yes. If yes, commands will be run in screen; otherwise run normally
+
+# Labels for screen sessions in "screen -ls"; these must be unique
 screen1 = "metar"
-title1 = "metar-v4.py"                          #define the filename for the metar.py file
-prog1 = "sudo python3 /NeoSectional/metar-v4.py"
 screen2 = "display"
-title2 = "metar-display-v4.py"                  #define the filename for the display.py file
-prog2 = "sudo python3 /NeoSectional/metar-display-v4.py"
 screen3 = "check"
+
+# Thread title names (generally the filenames for the script run)
+title1 = "metar-v4.py"                          #define the filename for the metar.py file
+title2 = "metar-display-v4.py"                  #define the filename for the display.py file
 title3 = "check-display.py"                     #define the filename for the check-display.py file
+
+# Command lines to be run for each program
+prog1 = "sudo python3 /NeoSectional/metar-v4.py"
+prog2 = "sudo python3 /NeoSectional/metar-display-v4.py"
 prog3 = "sudo python3 /NeoSectional/check-display.py"
 
+# Runs a shell command and returns the text output
 def runCommand(command):
     process = Popen(
         args=command,
@@ -45,6 +53,7 @@ def runCommand(command):
     )
     return process.communicate()[0]
 
+# Check to see if a screen session with that name is already running
 def checkForRunningScreen (name):
     cmdOutput = runCommand("screen -ls | grep " + name + " | wc -l")
     cmdOutput = cmdOutput.strip()
@@ -59,31 +68,43 @@ def startprgm(i):
     logger.info("Running thread %d" % i)
     if (i == 0):                                #Run first program prog1
         time.sleep(1)
-        logger.info(title1)                     #display filename being run
-        if not checkForRunningScreen (screen1):
-            logger.info("starting screen")
-            runCommand("screen -dmS " + screen1)
-        logger.info("running command " + screen1)
-        runCommand("screen -S " + screen1 + " -X stuff \"" + prog1 + "^M\"")
-#        os.system(prog1)                        #execute filename
+        logger.info("Running " + title1)        #display filename being run
+        # To run the program, either 
+        if screenused:
+            if not checkForRunningScreen (screen1):
+                logger.info("starting screen " + screen1)
+                runCommand("screen -dmS " + screen1)
+            logger.info("running screen command " + prog1)
+            runCommand("screen -S " + screen1 + " -X stuff \"" + prog1 + "^M\"")
+        else:
+            os.system(prog1)                        #execute filename
     if (i == 1) and (displayused):              #Run second program prog2 if display is  being used.
-        logger.info(title2)                     #display filename being run
+        logger.info("Running " + title2)                     #display filename being run
         time.sleep(1)
-        if not checkForRunningScreen (screen2):
-            runCommand("screen -dmS " + screen2)
-        runCommand("screen -S " + screen2 + " -X stuff \"" + prog2 + "^M\"")        
-#        os.system(prog2)                        #execute filename
+        if screenused:
+            if not checkForRunningScreen (screen2):
+                runCommand("screen -dmS " + screen2)
+            runCommand("screen -S " + screen2 + " -X stuff \"" + prog2 + "^M\"")
+        else:
+            os.system(prog2)                        #execute filename
     if (i == 2) and (displayused):              #Run second program prog3 if display is  being used (watchdog for displays).
-        logger.info(title3)                     #display filename being run
+        logger.info("Running " + title3)                     #display filename being run
         time.sleep(1)
-        if not checkForRunningScreen (screen3):
-            runCommand("screen -dmS " + screen3)
-        runCommand("screen -S " + screen3 + " -X stuff \"" + prog3 + "^M\"")
-#        os.system(prog3)                        #execute filename
+        if screenused:
+            if not checkForRunningScreen (screen3):
+                runCommand("screen -dmS " + screen3)
+            runCommand("screen -S " + screen3 + " -X stuff \"" + prog3 + "^M\"")
+        else:
+            os.system(prog3)                        #execute filename
     pass
 
+if screenused:
+    logger.info("Commands will be started with screen utility")
+else:
+    logger.info("Commands started directly from shell")
+
 if len(sys.argv) > 1 or autorun == 1:
-##       print (sys.argv[1] + " from cmd line") #debug
+#       print (sys.argv[1] + " from cmd line") #debug
     for i in range(3):
         t = threading.Thread(target=startprgm, args=(i,))
         t.start()
