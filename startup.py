@@ -12,6 +12,8 @@ import logzero                                  #had to manually install logzero
 from logzero import logger
 import config                                   #Config.py holds user settings used by the various scripts
 import admin
+from subprocess import PIPE, Popen
+import string
 
 # Setup rotating logfile with 3 rotations, each with a maximum filesize of 1MB:
 version = admin.version                         #Software version
@@ -25,32 +27,63 @@ logger.info("Log Level Set To: " + str(loglevels[loglevel]))
 #misc settings
 displayused = config.displayused                #0 = no, 1 = yes. If no, then only the metar.py script will be run. Otherwise both scripts will be threaded.
 autorun = config.autorun                        #0 = no, 1 = yes. If yes, live sectional will run on boot up. No, must run from cmd line.
+screen1 = "metar"
 title1 = "metar-v4.py"                          #define the filename for the metar.py file
 prog1 = "sudo python3 /NeoSectional/metar-v4.py"
+screen2 = "display"
 title2 = "metar-display-v4.py"                  #define the filename for the display.py file
 prog2 = "sudo python3 /NeoSectional/metar-display-v4.py"
+screen3 = "check"
 title3 = "check-display.py"                     #define the filename for the check-display.py file
 prog3 = "sudo python3 /NeoSectional/check-display.py"
+
+def runCommand(command):
+    process = Popen(
+        args=command,
+        stdout=PIPE,
+        shell=True
+    )
+    return process.communicate()[0]
+
+def checkForRunningScreen (name):
+    cmdOutput = runCommand("screen -ls | grep " + name + " | wc -l")
+    cmdOutput = cmdOutput.strip()
+    number = int(cmdOutput)
+    print(str(number) + " of screens of type " + str(name) + " found.")
+    if number > 0:
+        return True
+    else:
+        return False
 
 def startprgm(i):
     logger.info("Running thread %d" % i)
     if (i == 0):                                #Run first program prog1
         time.sleep(1)
         logger.info(title1)                     #display filename being run
-        os.system(prog1)                        #execute filename
+        if not checkForRunningScreen (screen1):
+            logger.info("starting screen")
+            runCommand("screen -dmS " + screen1)
+        logger.info("running command " + screen1)
+        runCommand("screen -S " + screen1 + " -X stuff \"" + prog1 + "^M\"")
+#        os.system(prog1)                        #execute filename
     if (i == 1) and (displayused):              #Run second program prog2 if display is  being used.
         logger.info(title2)                     #display filename being run
         time.sleep(1)
-        os.system(prog2)                        #execute filename
+        if not checkForRunningScreen (screen2):
+            runCommand("screen -dmS " + screen2)
+        runCommand("screen -S " + screen2 + " -X stuff \"" + prog2 + "^M\"")        
+#        os.system(prog2)                        #execute filename
     if (i == 2) and (displayused):              #Run second program prog3 if display is  being used (watchdog for displays).
         logger.info(title3)                     #display filename being run
         time.sleep(1)
-        os.system(prog3)                        #execute filename
+        if not checkForRunningScreen (screen3):
+            runCommand("screen -dmS " + screen3)
+        runCommand("screen -S " + screen3 + " -X stuff \"" + prog3 + "^M\"")
+#        os.system(prog3)                        #execute filename
     pass
 
 if len(sys.argv) > 1 or autorun == 1:
-#       print (sys.argv[1] + " from cmd line") #debug
+##       print (sys.argv[1] + " from cmd line") #debug
     for i in range(3):
         t = threading.Thread(target=startprgm, args=(i,))
         t.start()
-
